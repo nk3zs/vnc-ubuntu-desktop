@@ -1,29 +1,32 @@
-# Ubuntu Desktop nhẹ + VNC + noVNC
-FROM dorowu/ubuntu-desktop-lxde-vnc:focal
+# Base: Ubuntu 22.04 (Jammy Jellyfish)
+FROM ubuntu:22.04
 
-LABEL maintainer="ChatGPT Ubuntu Desktop Web"
+LABEL maintainer="ChatGPT Ubuntu Desktop Full - GNOME Web"
 
-# Xóa repo lỗi Chrome (nếu có)
-RUN rm -f /etc/apt/sources.list.d/google-chrome.list || true
-
-# Cập nhật hệ thống và cài thêm vài công cụ nhẹ
+# Cập nhật hệ thống & cài Ubuntu Desktop GNOME + VNC + noVNC
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        xterm sudo curl wget git software-properties-common && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        ubuntu-desktop-minimal \
+        gdm3 \
+        tightvncserver novnc websockify \
+        sudo wget curl dbus-x11 xterm && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Đặt độ phân giải thấp hơn để giảm lag
-ENV DISPLAY_WIDTH=1024
-ENV DISPLAY_HEIGHT=640
+# Tạo user ubuntu
+RUN useradd -m -s /bin/bash ubuntu && echo "ubuntu:ubuntu" | chpasswd && adduser ubuntu sudo
 
-# Hình nền Ubuntu
-RUN mkdir -p /usr/share/backgrounds && \
-    wget -O /usr/share/backgrounds/ubuntu.jpg https://wallpapercave.com/wp/wp9254862.jpg && \
-    echo '[Desktop Entry]\nType=Application\nExec=pcmanfm --set-wallpaper=/usr/share/backgrounds/ubuntu.jpg\nHidden=false' > /etc/xdg/autostart/set-wallpaper.desktop
+USER ubuntu
+WORKDIR /home/ubuntu
 
-# Expose cổng noVNC
-EXPOSE 6080 5900
-ENV PORT=6080
+# Cấu hình VNC
+RUN mkdir -p ~/.vnc && \
+    echo "ubuntu" | vncpasswd -f > ~/.vnc/passwd && \
+    chmod 600 ~/.vnc/passwd && \
+    echo '#!/bin/bash\n\
+vncserver -kill :1 || true\n\
+vncserver :1 -geometry 1280x720 -depth 24\n\
+websockify --web=/usr/share/novnc/ 6080 localhost:5901\n\
+tail -f /dev/null' > ~/start.sh && chmod +x ~/start.sh
 
-# Mặc định khởi chạy VNC/noVNC server
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+EXPOSE 6080
+CMD ["/home/ubuntu/start.sh"]
