@@ -3,8 +3,16 @@ FROM ubuntu:22.04
 
 LABEL maintainer="ChatGPT Ubuntu Desktop"
 
+# --- Fix tzdata non-interactive + timezone setup ---
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Ho_Chi_Minh
+RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
+    apt-get update && \
+    apt-get install -y tzdata && \
+    dpkg-reconfigure -f noninteractive tzdata
+
 # Install necessary dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
     sudo wget curl gnupg2 software-properties-common \
     tightvncserver novnc websockify \
     ubuntu-desktop-minimal \
