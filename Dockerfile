@@ -23,12 +23,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # 5️⃣ Tạo user ubuntu
-ARG USER=root
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -g ${GID} ${USER} || true \
- && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USER} \
- && echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Root user đã có sẵn
+USER root
 
 # 6️⃣ Locale
 RUN locale-gen en_US.UTF-8
