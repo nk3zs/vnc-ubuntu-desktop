@@ -1,47 +1,45 @@
-const express = require("express");
-const path = require("path");
+import express from "express";
+import Docker from "dockerode";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+const docker = new Docker();
 
-const PASSWORD = process.env.PASSWORD || "trockbop";
-const PORT = process.env.PORT || 8080;
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "frontend")));
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
-
-app.post("/login", (req, res) => {
-  const input = req.body.password;
-  if (input === PASSWORD) {
-    // Nếu nhập đúng -> chuyển sang panel Cockpit (hoặc dashboard)
-    res.redirect("/cockpit");
-  } else {
-    res.send(`
-      <h3 style="color:red;text-align:center;margin-top:40px;">
-        ❌ Sai mật khẩu! <a href="/">Thử lại</a>
-      </h3>
-    `);
+app.get("/api/containers", async (req, res) => {
+  try {
+    const containers = await docker.listContainers({ all: true });
+    res.json(containers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.get("/cockpit", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Ubuntu Panel</title>
-        <style>
-          body { background:#0f172a; color:#fff; font-family:sans-serif; text-align:center; margin-top:10%; }
-          h1 { color:#22c55e; }
-          a { color:#60a5fa; text-decoration:none; }
-        </style>
-      </head>
-      <body>
-        <h1>✅ Welcome to Ubuntu Panel</h1>
-        <p>Đăng nhập thành công!</p>
-        <p><a href="/">Logout</a></p>
-      </body>
-    </html>
-  `);
+app.post("/api/container/:id/:action", async (req, res) => {
+  const { id, action } = req.params;
+  const container = docker.getContainer(id);
+  try {
+    if (action === "start") await container.start();
+    else if (action === "stop") await container.stop();
+    else if (action === "restart") await container.restart();
+    else return res.status(400).json({ error: "Invalid action" });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Server chạy trên cổng ${PORT}`));
