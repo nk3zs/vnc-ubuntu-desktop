@@ -1,13 +1,15 @@
 {
   "name": "vps-panel",
   "version": "1.0.0",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "dockerode": "^3.3.0",
-    "cors": "^2.8.5"
+    "express-session": "^1.17.3",
+    "body-parser": "^1.20.2",
+    "ejs": "^3.1.9"
   }
 }
