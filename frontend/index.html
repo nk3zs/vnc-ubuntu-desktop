@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>VPS Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #222; color: #eee; }
+    button { margin: 5px; }
+    .container { background: #333; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Danh sách VPS (Containers)</h1>
+  <div id="containers"></div>
+
+  <script>
+    async function loadContainers() {
+      const res = await fetch('/api/containers');
+      const containers = await res.json();
+      const containerDiv = document.getElementById('containers');
+      containerDiv.innerHTML = '';
+
+      containers.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'container';
+        div.innerHTML = `
+          <b>${c.Names[0].substring(1)}</b> (ID: ${c.Id.substring(0,12)})<br/>
+          Status: ${c.Status}<br/>
+          <button onclick="control('${c.Id}', 'start')">Start</button>
+          <button onclick="control('${c.Id}', 'stop')">Stop</button>
+          <button onclick="control('${c.Id}', 'restart')">Restart</button>
+        `;
+        containerDiv.appendChild(div);
+      });
+    }
+
+    async function control(id, action) {
+      const res = await fetch(`/api/container/${id}/${action}`, { method: 'POST' });
+      const result = await res.json();
+      if(result.success) alert(`${action} thành công`);
+      else alert(`Lỗi: ${result.error}`);
+      loadContainers();
+    }
+
+    loadContainers();
+  </script>
+</body>
+</html>
