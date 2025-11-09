@@ -1,0 +1,18 @@
+<h2><%= vps.name %> - <%= vps.status %></h2>
+<form method="post" action="/vps/<%= vps.id %>/start">
+  <button>Start</button>
+</form>
+<form method="post" action="/vps/<%= vps.id %>/stop">
+  <button>Stop</button>
+</form>
+
+<h3>Console</h3>
+<ul>
+  <% (vps.log || []).forEach(cmd => { %>
+    <li><%= cmd %></li>
+  <% }) %>
+</ul>
+<form method="post" action="/vps/<%= vps.id %>/console">
+  <input name="cmd">
+  <button>Send</button>
+</form>

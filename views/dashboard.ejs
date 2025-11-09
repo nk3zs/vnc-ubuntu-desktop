@@ -1,0 +1,8 @@
+<h2>Dashboard</h2>
+<ul>
+  <% vpsList.forEach(vps => { %>
+    <li>
+      <a href="/vps/<%= vps.id %>"><%= vps.name %></a> - <%= vps.status %> - <%= vps.ram %>
+    </li>
+  <% }) %>
+</ul>
