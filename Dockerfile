@@ -1,7 +1,19 @@
-FROM alpine:latest
+FROM ubuntu:22.04
 
-RUN apk add --no-cache ttyd bash openssh-client
+ENV DEBIAN_FRONTEND=noninteractive
 
-EXPOSE 7681
+# Cài các gói cơ bản
+RUN apt update && apt install -y \
+    sudo nano curl wget systemd systemctl iproute2 net-tools \
+    openssh-server && \
+    apt clean
 
-CMD ["ttyd", "-p", "7681", "bash"]
+# Tạo user
+RUN useradd -m ubuntu && echo "ubuntu:123456" | chpasswd && adduser ubuntu sudo
+
+# SSH config
+RUN mkdir /var/run/sshd
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd","-D"]
