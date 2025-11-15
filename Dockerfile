@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nano vim htop jq unzip tar git rsync locales tzdata \
     openssh-server screen tmux supervisor haveged openjdk-17-jre-headless \
     openjdk-11-jre-headless ca-certificates \
-    zram-config psmisc iotop rsync unzip curl \
+    psmisc iotop rsync unzip curl \
     && rm -rf /var/lib/apt/lists/*
 
 # locales + timezone
@@ -23,11 +23,8 @@ RUN useradd -m -s /bin/bash ubuntu && \
     adduser ubuntu sudo
 
 # ---------- Install ShellHub (standalone) ----------
-# ShellHub installer will create necessary services under /usr/bin/shellhub
-# Use non-interactive install; if the real script changes, this may need update.
 RUN curl -fsSL https://get.shellhub.io/install.sh -o /tmp/install-shellhub.sh && \
     chmod +x /tmp/install-shellhub.sh && \
-    # set local/standalone mode via env; installer will install binary under /usr/bin
     BOOTSTRAP_TOKEN=local INSTALL_MODE=standalone sh /tmp/install-shellhub.sh || true && \
     rm -f /tmp/install-shellhub.sh || true
 
@@ -84,7 +81,7 @@ RUN printf "%s\n" \
 
 RUN chmod +x /usr/local/bin/install_minecraft.sh
 
-# ---------- Start script: zram, swap, sysctl, optimizations ----------
+# ---------- Start script: sysctl, optimizations ----------
 RUN printf "%s\n" \
 "#!/bin/bash" \
 "set -e" \
