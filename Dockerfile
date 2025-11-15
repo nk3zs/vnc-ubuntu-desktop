@@ -1,12 +1,10 @@
-# Use the latest Ubuntu image
 FROM ubuntu:22.04
 
-# Set environment variables to prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Bangkok \
     SHELLHUB_INSTALL_MODE=standalone
 
-# Update and install necessary packages
+# ---------- Base system + tools ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo wget curl ca-certificates gnupg2 apt-transport-https \
     bash bash-completion coreutils procps iproute2 net-tools iputils-ping \
@@ -16,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zram-config psmisc iotop rsync unzip curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the locale and timezone
+# locales + timezone
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Create a user for SSH and sudo access
@@ -24,13 +22,19 @@ RUN useradd -m -s /bin/bash ubuntu && \
     echo "ubuntu:ubuntu" | chpasswd && \
     adduser ubuntu sudo
 
-# Install ShellHub (web SSH terminal management)
+# ---------- Install ShellHub (standalone) ----------
+# ShellHub installer will create necessary services under /usr/bin/shellhub
+# Use non-interactive install; if the real script changes, this may need update.
 RUN curl -fsSL https://get.shellhub.io/install.sh -o /tmp/install-shellhub.sh && \
     chmod +x /tmp/install-shellhub.sh && \
+    # set local/standalone mode via env; installer will install binary under /usr/bin
     BOOTSTRAP_TOKEN=local INSTALL_MODE=standalone sh /tmp/install-shellhub.sh || true && \
     rm -f /tmp/install-shellhub.sh || true
 
-# Supervisor config for managing processes
+# Ensure minimal dirs exist
+RUN mkdir -p /var/run/sshd /etc/shellhub /var/lib/shellhub || true
+
+# ---------- Supervisor config ----------
 RUN mkdir -p /etc/supervisor/conf.d
 RUN printf "%s\n" \
 "[supervisord]" \
@@ -53,7 +57,7 @@ RUN printf "%s\n" \
 "autorestart=true" \
 > /etc/supervisor/conf.d/supervisord.conf
 
-# Install helper script for Minecraft server installation
+# ---------- Helper: Minecraft installer + management ----------
 RUN mkdir -p /opt/minecraft && chown ubuntu:ubuntu /opt/minecraft
 RUN printf "%s\n" \
 "#!/bin/bash" \
@@ -80,13 +84,7 @@ RUN printf "%s\n" \
 
 RUN chmod +x /usr/local/bin/install_minecraft.sh
 
-# Enable ZRAM for memory compression instead of swap
-RUN echo lz4 > /sys/block/zram0/comp_algorithm && \
-    echo 512M > /sys/block/zram0/disksize && \
-    mkswap /dev/zram0 && \
-    swapon /dev/zram0
-
-# Configure system optimizations for better performance
+# ---------- Start script: zram, swap, sysctl, optimizations ----------
 RUN printf "%s\n" \
 "#!/bin/bash" \
 "set -e" \
