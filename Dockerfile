@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Base tools
+# Install base packages
 RUN apt-get update && apt-get install -y \
     sudo wget curl nano htop bash openssh-server ca-certificates xz-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -18,11 +18,11 @@ RUN useradd -m -s /bin/bash ubuntu && \
     echo "ubuntu:ubuntu" | chpasswd && \
     adduser ubuntu sudo
 
-# SSH
+# Setup SSH
 RUN mkdir -p /var/run/sshd
 
-# Install stable Wetty
-RUN npm install -g wetty@1.4.0
+# Install Wetty (latest stable version)
+RUN npm install -g wetty
 
 # Expose port
 EXPOSE 8080
