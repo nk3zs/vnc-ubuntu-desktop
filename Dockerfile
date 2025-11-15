@@ -1,50 +1,51 @@
-# 🐧 Ubuntu 22.04 by trockbop
+# Dockerfile - ubuntu web desktop nhẹ (LXDE + x11vnc + web noVNC)
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    USER=ubuntu \
+    PASSWORD=ubuntu
 
-# 1️⃣ Cài công cụ cơ bản
+# core packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl wget gnupg2 sudo locales unzip git build-essential procps lsb-release \
-    nano vim htop net-tools iputils-ping software-properties-common \
- && rm -rf /var/lib/apt/lists/*
+    sudo \
+    wget \
+    ca-certificates \
+    locales \
+    dbus-x11 \
+    x11-xserver-utils \
+    xauth \
+    xvfb \
+    x11vnc \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-panel \
+    xfce4-session \
+    lightdm \
+    openbox \
+    pcmanfm \
+    net-tools \
+    curl \
+    python3 \
+    python3-pip \
+    supervisor \
+    websockify \
+    novnc \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2️⃣ Cài Python + pip
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv && \
-    ln -sf /usr/bin/python3 /usr/bin/python && \
-    pip install --upgrade pip setuptools wheel
+# create user
+RUN useradd -m -s /bin/bash $USER && echo "$USER:$PASSWORD" | chpasswd && adduser $USER sudo
 
-# 3️⃣ Cài Node.js LTS
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    node -v && npm -v
+# Setup noVNC folder (some distros package novnc differently; ensure webroot exists)
+RUN mkdir -p /opt/novnc && \
+    ln -s /usr/share/novnc /opt/novnc 2>/dev/null || true
 
-# 4️⃣ Cài code-server từ repo chính thức (ổn định)
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+# Supervisor config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# 5️⃣ Tạo user ubuntu
-# Root user đã có sẵn
-USER root
+# Startup script
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
-# 6️⃣ Locale
-RUN locale-gen en_US.UTF-8
-ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+EXPOSE 6080 5900
 
-WORKDIR /home/${USER}
-RUN chown -R ${USER}:${USER} /home/${USER}
-
-ENV PORT=8080
-EXPOSE 8080
-USER ${USER}
-
-# 7️⃣ ENTRYPOINT (sạch, không lỗi cú pháp)
-ENTRYPOINT ["/bin/sh", "-c", "\
-if [ -z \"$PASSWORD\" ]; then \
-  echo '⚠️  PASSWORD not set — using default: render'; \
-  PASSWORD=render; \
-fi; \
-echo '🔧 Starting Ubuntu Dev Server with code-server...'; \
-exec code-server --bind-addr 0.0.0.0:${PORT} --auth password \
-  --user-data-dir /home/ubuntu/.local/share/code-server \
-  --extensions-dir /home/ubuntu/.local/share/code-server/extensions \
-"]
+CMD ["/usr/local/bin/start.sh"]
