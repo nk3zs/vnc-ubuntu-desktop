@@ -1,11 +1,12 @@
-# One-file Docker: ShellHub web panel + SSH + otimizations + Minecraft helper
+# Use the latest Ubuntu image
 FROM ubuntu:22.04
 
+# Set environment variables to prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Bangkok \
     SHELLHUB_INSTALL_MODE=standalone
 
-# ---------- Base system + tools ----------
+# Update and install necessary packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo wget curl ca-certificates gnupg2 apt-transport-https \
     bash bash-completion coreutils procps iproute2 net-tools iputils-ping \
@@ -15,27 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zram-config psmisc iotop rsync unzip curl \
     && rm -rf /var/lib/apt/lists/*
 
-# locales + timezone
+# Set the locale and timezone
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
-# ---------- Create admin user ----------
+# Create a user for SSH and sudo access
 RUN useradd -m -s /bin/bash ubuntu && \
     echo "ubuntu:ubuntu" | chpasswd && \
     adduser ubuntu sudo
 
-# ---------- Install ShellHub (standalone) ----------
-# ShellHub installer will create necessary services under /usr/bin/shellhub
-# Use non-interactive install; if the real script changes, this may need update.
+# Install ShellHub (web SSH terminal management)
 RUN curl -fsSL https://get.shellhub.io/install.sh -o /tmp/install-shellhub.sh && \
     chmod +x /tmp/install-shellhub.sh && \
-    # set local/standalone mode via env; installer will install binary under /usr/bin
     BOOTSTRAP_TOKEN=local INSTALL_MODE=standalone sh /tmp/install-shellhub.sh || true && \
     rm -f /tmp/install-shellhub.sh || true
 
-# Ensure minimal dirs exist
-RUN mkdir -p /var/run/sshd /etc/shellhub /var/lib/shellhub || true
-
-# ---------- Supervisor config ----------
+# Supervisor config for managing processes
 RUN mkdir -p /etc/supervisor/conf.d
 RUN printf "%s\n" \
 "[supervisord]" \
@@ -58,7 +53,7 @@ RUN printf "%s\n" \
 "autorestart=true" \
 > /etc/supervisor/conf.d/supervisord.conf
 
-# ---------- Helper: Minecraft installer + management ----------
+# Install helper script for Minecraft server installation
 RUN mkdir -p /opt/minecraft && chown ubuntu:ubuntu /opt/minecraft
 RUN printf "%s\n" \
 "#!/bin/bash" \
@@ -85,43 +80,25 @@ RUN printf "%s\n" \
 
 RUN chmod +x /usr/local/bin/install_minecraft.sh
 
-# ---------- Start script: zram, swap, sysctl, optimizations ----------
+# Enable ZRAM for memory compression instead of swap
+RUN echo lz4 > /sys/block/zram0/comp_algorithm && \
+    echo 512M > /sys/block/zram0/disksize && \
+    mkswap /dev/zram0 && \
+    swapon /dev/zram0
+
+# Configure system optimizations for better performance
 RUN printf "%s\n" \
 "#!/bin/bash" \
 "set -e" \
 "" \
-"# ---- Disable apt timers (reduce background I/O) ----" \
+"# ---- Disable apt timers ----" \
 "rm -f /etc/cron.daily/apt-* 2>/dev/null || true" \
 "systemctl disable --now apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true" \
-"" \
-"# ---- zram (if /sys/block/zram0 present) ----" \
-"if [ -e /sys/block/zram0 ]; then" \
-"  echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null || true" \
-"  echo 512M > /sys/block/zram0/disksize 2>/dev/null || true" \
-"  mkswap /dev/zram0 2>/dev/null || true" \
-"  swapon /dev/zram0 2>/dev/null || true" \
-"fi" \
-"" \
-"# ---- fallback swap file ----" \
-"SWAPFILE=/swapfile" \
-"if [ ! -f \$SWAPFILE ]; then" \
-"  fallocate -l 512M \$SWAPFILE || dd if=/dev/zero of=\$SWAPFILE bs=1M count=512" \
-"  chmod 600 \$SWAPFILE" \
-"  mkswap \$SWAPFILE" \
-"  swapon \$SWAPFILE" \
-"fi" \
 "" \
 "# ---- kernel tuning ----" \
 "sysctl -w vm.swappiness=90 || true" \
 "sysctl -w vm.vfs_cache_pressure=200 || true" \
 "sysctl -w fs.file-max=100000 || true" \
-"" \
-"# ---- reduce logging (journald not used inside simple container) ----" \
-"export DEBIAN_FRONTEND=noninteractive" \
-"if [ -f /etc/rsyslog.conf ]; then sed -i 's/^\\\$ModLoad/#\\$ModLoad/g' /etc/rsyslog.conf || true; fi" \
-"" \
-"# ---- nice the main shellhub & sshd (will be restarted by supervisord) ----" \
-"renice -n -5 -p 1 >/dev/null 2>&1 || true" \
 "" \
 "# ---- Create handy aliases for ubuntu user ----" \
 "cat >> /etc/profile.d/99-helpers.sh <<'EOF'" \
@@ -136,8 +113,8 @@ RUN printf "%s\n" \
 
 RUN chmod +x /usr/local/bin/start.sh
 
-# Expose ports (Render: add these ports in service settings)
+# Expose necessary ports (web panel, SSH)
 EXPOSE 8080 2222 25565
 
-# Entrypoint
+# Entrypoint command to start processes
 CMD ["/usr/local/bin/start.sh"]
