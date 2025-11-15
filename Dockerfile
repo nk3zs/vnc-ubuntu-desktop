@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Cập nhật và cài đặt các gói cần thiết
+# Cài các gói cơ bản
 RUN apt-get update && apt-get install -y \
     curl \
     sudo \
@@ -13,30 +13,25 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     xauth \
     lsb-release \
-    libxext6 \
-    libxmuu1 \
-    libxml2 \
     htop \
     ssh-import-id \
     && rm -rf /var/lib/apt/lists/*
 
-# Nếu Node.js đã được cài trước đó, ta sẽ chỉ cần cài lại từ NodeSource
+# Cài Node.js 18 từ NodeSource
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     node -v && npm -v
 
-# Cài Wetty
+# Cài Wetty (web terminal)
 RUN npm install -g wetty
 
-# Tạo thư mục cho SSH
+# Chuẩn bị SSH
 RUN mkdir /var/run/sshd
-
-# Cấu hình SSH cho phép login với user root
 RUN echo 'root:root' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
 
-# Mở port 80 cho Wetty
+# Mở port 80
 EXPOSE 80
 
 # Chạy SSH và Wetty
