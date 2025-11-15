@@ -1,48 +1,32 @@
-# Chọn base image Ubuntu 22.04
+# Dockerfile chuẩn cho Wetty + ssh server trên Ubuntu
+
 FROM ubuntu:22.04
 
-# Tránh tương tác khi cài đặt gói
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Cập nhật và cài các gói cơ bản + build tools + python
+# Cập nhật & cài ssh + curl + nodejs (dùng nodejs để chạy wetty)
 RUN apt-get update && apt-get install -y \
-    curl \
-    sudo \
     openssh-server \
-    ca-certificates \
-    build-essential \
-    python3 \
-    python3-pip \
-    xauth \
-    lsb-release \
-    libxext6 \
-    libxmuu1 \
-    libxml2 \
-    htop \
-    networkd-dispatcher \
-    ssh-import-id \
+    curl \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Cài Node.js v18
-RUN curl -fsSL https://nodejs.org/dist/v18.19.1/node-v18.19.1-linux-x64.tar.xz -o node.tar.xz \
-    && tar -xf node.tar.xz -C /usr/local --strip-components=1 \
-    && rm node.tar.xz \
-    && node -v \
-    && npm -v
-
-# Tạo user ubuntu và add vào sudo
-RUN useradd -m -s /bin/bash ubuntu \
-    && echo "ubuntu:ubuntu" | chpasswd \
-    && adduser ubuntu sudo
-
-# Chuẩn bị SSH
-RUN mkdir -p /var/run/sshd
-
-# Cài Wetty (web terminal)
+# Cài Wetty
 RUN npm install -g wetty
 
-# Expose port cho Wetty
+# Tạo thư mục chứa sshd
+RUN mkdir /var/run/sshd
+
+# Cho phép đăng nhập ssh root (dùng password 'root')
+RUN echo 'root:root' | chpasswd
+
+# Cho phép root login qua ssh password
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Tắt việc yêu cầu tty cho ssh
+RUN sed -i 's/UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
+# Expose port 3000 cho wetty
 EXPOSE 3000
 
-# Command để chạy SSH server (Wetty sẽ dùng)
-CMD ["/usr/sbin/sshd", "-D"]
+# Khởi động sshd rồi chạy wetty trên port 3000
+CMD service ssh start && wetty --port 3000 --ssh-host 127.0.0.1
