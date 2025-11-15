@@ -2,7 +2,8 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     USER=ubuntu \
-    PASSWORD=ubuntu
+    PASSWORD=ubuntu \
+    DISPLAY=:1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo wget curl nano supervisor \
@@ -17,38 +18,43 @@ RUN useradd -m -s /bin/bash $USER && \
     echo "$USER:$PASSWORD" | chpasswd && \
     adduser $USER sudo
 
-# ---------------------------
-# Supervisor config (IN ONE FILE)
-# ---------------------------
+# -----------------------------
+# Supervisor config (FULL FIX)
+# -----------------------------
 RUN printf "%s\n" \
 "[supervisord]" \
 "nodaemon=true" \
+"user=root" \
 "" \
 "[program:xvfb]" \
 "command=/usr/bin/Xvfb :1 -screen 0 1280x720x16" \
 "autostart=true" \
 "autorestart=true" \
+"priority=1" \
 "" \
 "[program:xfce]" \
-"command=/bin/bash -lc \"export DISPLAY=:1; su - ubuntu -c 'startxfce4'\"" \
+"command=/bin/bash -lc \"export DISPLAY=:1; su - ubuntu -c 'dbus-launch startxfce4'\"" \
 "autostart=true" \
 "autorestart=true" \
-"startsecs=5" \
+"startsecs=4" \
+"priority=2" \
 "" \
 "[program:x11vnc]" \
-"command=/usr/bin/x11vnc -display :1 -forever -nopw -shared -rfbport 5900" \
+"command=/bin/bash -lc \"sleep 3 && x11vnc -display :1 -forever -nopw -shared -rfbport 5900\"" \
 "autostart=true" \
 "autorestart=true" \
+"priority=3" \
 "" \
 "[program:novnc]" \
 "command=/usr/bin/websockify --web=/usr/share/novnc/ 6080 localhost:5900" \
 "autostart=true" \
 "autorestart=true" \
+"priority=4" \
 > /etc/supervisor/conf.d/supervisord.conf
 
-# ---------------------------
-# Start script
-# ---------------------------
+# -----------------------------
+# Start script (swap + sysctl)
+# -----------------------------
 RUN printf "%s\n" \
 "#!/bin/bash" \
 "" \
@@ -65,6 +71,7 @@ RUN printf "%s\n" \
 "sysctl -w vm.swappiness=90" \
 "sysctl -w vm.vfs_cache_pressure=200" \
 "" \
+"export DISPLAY=:1" \
 "exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf" \
 > /usr/local/bin/start.sh
 
