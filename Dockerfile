@@ -1,33 +1,48 @@
+# Chọn base image Ubuntu 22.04
 FROM ubuntu:22.04
 
+# Tránh tương tác khi cài đặt gói
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Cài đặt các công cụ cơ bản
+# Cập nhật và cài các gói cơ bản + build tools + python
 RUN apt-get update && apt-get install -y \
-    sudo wget curl nano htop bash openssh-server ca-certificates \
-    build-essential python3-dev \
+    curl \
+    sudo \
+    openssh-server \
+    ca-certificates \
+    build-essential \
+    python3 \
+    python3-pip \
+    xauth \
+    lsb-release \
+    libxext6 \
+    libxmuu1 \
+    libxml2 \
+    htop \
+    networkd-dispatcher \
+    ssh-import-id \
     && rm -rf /var/lib/apt/lists/*
 
-# Cài đặt NodeJS 18 và npm
-RUN curl -fsSL https://nodejs.org/dist/v18.19.1/node-v18.19.1-linux-x64.tar.xz -o node.tar.xz && \
-    tar -xf node.tar.xz -C /usr/local --strip-components=1 && \
-    rm node.tar.xz && \
-    node -v && npm -v
+# Cài Node.js v18
+RUN curl -fsSL https://nodejs.org/dist/v18.19.1/node-v18.19.1-linux-x64.tar.xz -o node.tar.xz \
+    && tar -xf node.tar.xz -C /usr/local --strip-components=1 \
+    && rm node.tar.xz \
+    && node -v \
+    && npm -v
 
-# Tạo user
-RUN useradd -m -s /bin/bash ubuntu && \
-    echo "ubuntu:ubuntu" | chpasswd && \
-    adduser ubuntu sudo
+# Tạo user ubuntu và add vào sudo
+RUN useradd -m -s /bin/bash ubuntu \
+    && echo "ubuntu:ubuntu" | chpasswd \
+    && adduser ubuntu sudo
 
-# Cài đặt Wetty (phiên bản mới nhất)
-RUN npm install -g wetty
-
-# Tạo thư mục SSH
+# Chuẩn bị SSH
 RUN mkdir -p /var/run/sshd
 
-# Mở port 8080 cho Web Terminal
-EXPOSE 8080
+# Cài Wetty (web terminal)
+RUN npm install -g wetty
 
-# Lệnh khởi động SSH và Wetty
-CMD service ssh start && \
-    wetty --port 8080 --base / --ssh-host 127.0.0.1 --ssh-port 22
+# Expose port cho Wetty
+EXPOSE 3000
+
+# Command để chạy SSH server (Wetty sẽ dùng)
+CMD ["/usr/sbin/sshd", "-D"]
