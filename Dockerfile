@@ -2,9 +2,9 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Base tools
+# Install base packages
 RUN apt-get update && apt-get install -y \
-    sudo wget curl nano htop bash openssh-server \
+    sudo curl wget nano htop bash openssh-server \
     nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
@@ -13,15 +13,15 @@ RUN useradd -m -s /bin/bash ubuntu && \
     echo "ubuntu:ubuntu" | chpasswd && \
     adduser ubuntu sudo
 
-# SSH setup
+# Setup SSH
 RUN mkdir -p /var/run/sshd
 
-# Install Wetty (Web SSH)
+# Install Wetty (web terminal)
 RUN npm install -g wetty
 
-# Expose HTTP port
+# Expose port
 EXPOSE 8080
 
-# Start web terminal and SSH
+# Start script
 CMD service ssh start && \
     wetty --port 8080 --base / --ssh-host 127.0.0.1 --ssh-port 22
